@@ -1,0 +1,280 @@
+//Master page//
+
+<!DOCTYPE html>
+<html>
+<head runat="server">
+    <title>Ứng dụng Web</title>
+</head>
+<body>
+    <header>
+        <h1>Họ tên: Nguyễn Văn A</h1>
+        <nav>
+            <a href="List.aspx">Danh sách chuyến đi</a> |
+            <a href="Add.aspx">Thêm chuyến đi</a>
+        </nav>
+    </header>
+    <asp:ContentPlaceHolder ID="MainContent" runat="server">
+        <!-- Nội dung của các trang con sẽ được chèn vào đây -->
+    </asp:ContentPlaceHolder>
+    <footer>
+        <p>Kiểm tra 2</p>
+    </footer>
+</body>
+</html>
+
+//tblChuyenDi//
+
+public class tblChuyendi
+    {
+        public int Macd { get; set; }
+        public string Tencd { get; set; }
+        public int Songaydi { get; set; }
+        public int Songuoidi { get; set; }
+        public int Mapt { get; set; }
+    }
+
+//tblPhuongtien//
+
+public class tblPhuongtien
+    {
+        public int Mapt { get; set; }
+        public string Tenpt { get; set; }
+        public decimal Giatien { get; set; }
+    }
+
+//DataUtil//
+
+public class DataUtil
+    {
+        private string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString;
+
+        public DataTable ExecuteQuery(string query)
+        {
+            using (SqlConnection conn = new SqlConnection(connectionString))
+            {
+                SqlDataAdapter adapter = new SqlDataAdapter(query, conn);
+                DataTable dt = new DataTable();
+                adapter.Fill(dt);
+                return dt;
+            }
+        }
+
+        public void ExecuteNonQuery(string query)
+        {
+            using (SqlConnection conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+                SqlCommand cmd = new SqlCommand(query, conn);
+                cmd.ExecuteNonQuery();
+            }
+        }
+    }
+
+//List//
+
+<%@ Page Title="Danh sách chuyến đi" Language="C#" MasterPageFile="~/Site.Master" AutoEventWireup="true" CodeBehind="List.aspx.cs" Inherits="DeN_HoTen_MaSV.List" %>
+
+<asp:Content ID="Content1" ContentPlaceHolderID="MainContent" runat="server">
+    <h2>Danh sách chuyến đi</h2>
+    <asp:GridView ID="GridView1" runat="server" AutoGenerateColumns="False" OnRowCommand="GridView1_RowCommand">
+        <Columns>
+            <asp:BoundField DataField="Macd" HeaderText="Mã chuyến đi" />
+            <asp:BoundField DataField="Tencd" HeaderText="Tên chuyến đi" />
+            <asp:BoundField DataField="Songaydi" HeaderText="Số ngày đi" />
+            <asp:BoundField DataField="Songuoidi" HeaderText="Số người đi" />
+            <asp:BoundField DataField="Mapt" HeaderText="Mã phương tiện" />
+            <asp:ButtonField Text="Xóa" CommandName="Delete" />
+            <asp:ButtonField Text="Sửa" CommandName="Edit" />
+        </Columns>
+    </asp:GridView>
+    <asp:Button ID="btnAdd" runat="server" Text="Thêm mới" OnClick="btnAdd_Click" />
+</asp:Content>
+------------
+public partial class List : System.Web.UI.Page
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                LoadData();
+            }
+        }
+
+        private void LoadData()
+        {
+            DataUtil dataUtil = new DataUtil();
+            GridView1.DataSource = dataUtil.ExecuteQuery("SELECT * FROM tblChuyendi");
+            GridView1.DataBind();
+        }
+
+        protected void btnAdd_Click(object sender, EventArgs e)
+        {
+            Response.Redirect("Add.aspx");
+        }
+
+        protected void GridView1_RowCommand(object sender, GridViewCommandEventArgs e)
+        {
+            if (e.CommandName == "Delete")
+            {
+                int index = Convert.ToInt32(e.CommandArgument);
+                int macd = Convert.ToInt32(GridView1.DataKeys[index].Value);
+
+                DataUtil dataUtil = new DataUtil();
+                dataUtil.ExecuteNonQuery($"DELETE FROM tblChuyendi WHERE Macd = {macd}");
+                LoadData();
+            }
+            else if (e.CommandName == "Edit")
+            {
+                int index = Convert.ToInt32(e.CommandArgument);
+                int macd = Convert.ToInt32(GridView1.DataKeys[index].Value);
+
+                Response.Redirect($"Update.aspx?macd={macd}");
+            }
+        }
+    }
+
+//Add//
+<%@ Page Title="Thêm chuyến đi" Language="C#" MasterPageFile="~/Site.Master" AutoEventWireup="true" CodeBehind="Add.aspx.cs" Inherits="DeN_HoTen_MaSV.Add" %>
+
+<asp:Content ID="Content1" ContentPlaceHolderID="MainContent" runat="server">
+    <h2>Thêm chuyến đi mới</h2>
+    <table>
+        <tr>
+            <td>Tên chuyến đi:</td>
+            <td><asp:TextBox ID="txtTencd" runat="server"></asp:TextBox></td>
+        </tr>
+        <tr>
+            <td>Số ngày đi:</td>
+            <td><asp:TextBox ID="txtSongaydi" runat="server"></asp:TextBox></td>
+        </tr>
+        <tr>
+            <td>Số người đi:</td>
+            <td><asp:TextBox ID="txtSonguoidi" runat="server"></asp:TextBox></td>
+        </tr>
+        <tr>
+            <td>Phương tiện:</td>
+            <td>
+                <asp:DropDownList ID="ddlMapt" runat="server"></asp:DropDownList>
+            </td>
+        </tr>
+    </table>
+    <asp:Button ID="btnSave" runat="server" Text="Lưu" OnClick="btnSave_Click" />
+    <asp:Button ID="btnCancel" runat="server" Text="Hủy" OnClick="btnCancel_Click" />
+</asp:Content>
+--------------
+public partial class Add : System.Web.UI.Page
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                LoadPhuongTien();
+            }
+        }
+
+        private void LoadPhuongTien()
+        {
+            DataUtil dataUtil = new DataUtil();
+            ddlMapt.DataSource = dataUtil.ExecuteQuery("SELECT Mapt, Tenpt FROM tblPhuongtien");
+            ddlMapt.DataTextField = "Tenpt";
+            ddlMapt.DataValueField = "Mapt";
+            ddlMapt.DataBind();
+        }
+    }
+
+//Update//
+<%@ Page Title="Cập nhật chuyến đi" Language="C#" MasterPageFile="~/Site.Master" AutoEventWireup="true" CodeBehind="Update.aspx.cs" Inherits="DeN_HoTen_MaSV.Update" %>
+
+<asp:Content ID="Content1" ContentPlaceHolderID="MainContent" runat="server">
+    <h2>Cập nhật chuyến đi</h2>
+    <table>
+        <tr>
+            <td>Tên chuyến đi:</td>
+            <td><asp:TextBox ID="txtTencd" runat="server"></asp:TextBox></td>
+        </tr>
+        <tr>
+            <td>Số ngày đi:</td>
+            <td><asp:TextBox ID="txtSongaydi" runat="server"></asp:TextBox></td>
+        </tr>
+        <tr>
+            <td>Số người đi:</td>
+            <td><asp:TextBox ID="txtSonguoidi" runat="server"></asp:TextBox></td>
+        </tr>
+        <tr>
+            <td>Phương tiện:</td>
+            <td>
+                <asp:DropDownList ID="ddlMapt" runat="server"></asp:DropDownList>
+            </td>
+        </tr>
+    </table>
+    <asp:Button ID="btnUpdate" runat="server" Text="Cập nhật" OnClick="btnUpdate_Click" />
+    <asp:Button ID="btnCancel" runat="server" Text="Hủy" OnClick="btnCancel_Click" />
+</asp:Content>
+-------------
+public partial class Update : System.Web.UI.Page
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                int macd;
+                if (int.TryParse(Request.QueryString["macd"], out macd))
+                {
+                    LoadChuyenDi(macd);
+                    LoadPhuongTien();
+                }
+                else
+                {
+                    Response.Redirect("List.aspx");
+                }
+            }
+        }
+
+        private void LoadChuyenDi(int macd)
+        {
+            DataUtil dataUtil = new DataUtil();
+            DataTable dt = dataUtil.ExecuteQuery($"SELECT * FROM tblChuyendi WHERE Macd = {macd}");
+
+            if (dt.Rows.Count > 0)
+            {
+                DataRow row = dt.Rows[0];
+                txtTencd.Text = row["Tencd"].ToString();
+                txtSongaydi.Text = row["Songaydi"].ToString();
+                txtSonguoidi.Text = row["Songuoidi"].ToString();
+                ddlMapt.SelectedValue = row["Mapt"].ToString();
+            }
+            else
+            {
+                Response.Redirect("List.aspx");
+            }
+        }
+
+        private void LoadPhuongTien()
+        {
+            DataUtil dataUtil = new DataUtil();
+            ddlMapt.DataSource = dataUtil.ExecuteQuery("SELECT Mapt, Tenpt FROM tblPhuongtien");
+            ddlMapt.DataTextField = "Tenpt";
+            ddlMapt.DataValueField = "Mapt";
+            ddlMapt.DataBind();
+        }
+
+        protected void btnUpdate_Click(object sender, EventArgs e)
+        {
+            int macd = int.Parse(Request.QueryString["macd"]);
+            string tencd = txtTencd.Text;
+            int songaydi = int.Parse(txtSongaydi.Text);
+            int songuoidi = int.Parse(txtSonguoidi.Text);
+            int mapt = int.Parse(ddlMapt.SelectedValue);
+
+            DataUtil dataUtil = new DataUtil();
+            string query = $"UPDATE tblChuyendi SET Tencd = '{tencd}', Songaydi = {songaydi}, Songuoidi = {songuoidi}, Mapt = {mapt} WHERE Macd = {macd}";
+            dataUtil.ExecuteNonQuery(query);
+
+            Response.Redirect("List.aspx");
+        }
+
+        protected void btnCancel_Click(object sender, EventArgs e)
+        {
+            Response.Redirect("List.aspx");
+        }
+    }
